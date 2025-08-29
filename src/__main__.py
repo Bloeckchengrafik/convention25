@@ -4,11 +4,11 @@ from swarm import FtSwarm, FtSwarmSwitch
 from swarm import FtSwarmStepper
 
 from .sizing import Distance
-from .optimizer import optimize
 from .emergency_trap import EmergencyStop
 from .printer import MoveTo, Printer
 from .slicer import slice
 from .slicer.visualizer import visualize
+from .slicer.optimizer import optimize
 
 async def main():
     swarm = FtSwarm("/dev/ttyUSB0")
