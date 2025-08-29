@@ -5,9 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "ftswarm-py>=1.2.2",
     "matplotlib>=3.10.5",
     "vpype[all]>=1.15.0",
     "vpype-gcode>=0.13.0",
     "svgpathtools>=1.7.1",
+    "pyserial>=3.5",
 ]

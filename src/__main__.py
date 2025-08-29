@@ -1,44 +1,42 @@
 import asyncio
 import logging
-from swarm import FtSwarm
-from swarm.swarm import FtSwarmIO
+from swarm import FtSwarm, FtSwarmSwitch
+from swarm import FtSwarmStepper
 
-class FtSwarmStepper(FtSwarmIO):
-    def __init__(self, swarm, port_name) -> None:
-        super().__init__(swarm, port_name)
+from .sizing import Distance
+from .optimizer import optimize
+from .emergency_trap import EmergencyStop
+from .printer import MoveTo, Printer
+from .slicer import slice
+from .slicer.visualizer import visualize
 
-    async def post_init(self) -> None:
-        pass
-
-    async def homing(self, max_steps: int):
-        await self._swarm.send(self._port_name, "homing", max_steps)
-
-    async def set_distance(self, distance: int, relative: bool):
-        await self._swarm.send(self._port_name, "setDistance", distance, int(relative))
-
-    async def run(self):
-        await self._swarm.send(self._port_name, "run")
-
-    async def stop(self):
-        await self._swarm.send(self._port_name, "stop")
-
-    async def is_running(self) -> bool:
-        return await self._swarm.send(self._port_name, "isRunning") == 1
-
-
-async def read_button():
+async def main():
     swarm = FtSwarm("/dev/ttyUSB0")
-    swarm.logger.setLevel(logging.DEBUG)
+    # swarm.logger.setLevel(logging.DEBUG)
     await swarm.send("ftSwarm400", "setMicrostepMode", 2)
-    stepper = await swarm._get_object("Stepper1", FtSwarmStepper)
 
-    await stepper.homing(500000)
-    input("press enter to continue")
-    await stepper.stop()
+    y_axis: FtSwarmStepper = await swarm._get_object("ftSwarm400.M3", FtSwarmStepper)
+    x_axis: FtSwarmStepper = await swarm._get_object("ftSwarm400.M4", FtSwarmStepper)
+    es: EmergencyStop = await swarm._get_object("ftSwarm400.EM", EmergencyStop)
 
-    await stepper.set_distance(-10000, False)
-    await stepper.run()
-    input("press enter to stop")
-    await stepper.stop()
+    await y_axis.set_speed(4000)
+    await x_axis.set_speed(4000)
 
-asyncio.run(read_button())
+    commands = [
+        MoveTo(Distance(cm=0), Distance(cm=0)),
+        MoveTo(Distance(cm=1), Distance(cm=0)),
+        MoveTo(Distance(cm=1), Distance(cm=1)),
+        MoveTo(Distance(cm=0), Distance(cm=1)),
+        MoveTo(Distance(cm=0), Distance(cm=0)),
+    ] # slice("box.svg")
+
+    printer = Printer(x_axis, y_axis, es)
+    await printer.home()
+    es.trap()
+
+    for command in commands:
+        await command.execute(printer)
+        es.trap()
+
+asyncio.run(main())
+#visualize(optimize(slice("circuit.svg")))

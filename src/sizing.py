@@ -9,16 +9,16 @@ worm_module = 1.5
 worm_lead = worm_module * pi
 
 class Distance:
-    mm: int
-    
-    def __init__(self, cm: float = 0, mm: int = 0):
+    mm: float
+
+    def __init__(self, cm: float = 0, mm: float = 0):
         cm_in_mm = int(cm * 10)
         self.mm = cm_in_mm + mm
-        
-    def to_steps(self, gear_ratio: float, steps_per_rotation: int = 200) -> int:
+
+    def to_steps(self, gear_ratio: float, steps_per_rotation: int = 200 * 4) -> int:
         """
         Convert the distance to motor steps.
-        
+
         Used conversion:
         - MM -> Wormscrew rotations
         - Wormscrew rotations -> Axis rotations
@@ -32,3 +32,6 @@ class Distance:
             int: The number of motor steps required to move the specified distance.
         """
         return int((self.mm / worm_lead) * steps_per_rotation * gear_ratio)
+
+    def __repr__(self) -> str:
+        return f"{self.mm}mm"
