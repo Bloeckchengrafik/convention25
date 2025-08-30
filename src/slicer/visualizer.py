@@ -1,5 +1,6 @@
 import abc
 from dataclasses import dataclass, field
+from io import BytesIO
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
@@ -7,12 +8,13 @@ import numpy as np
 
 from svgpathtools.paths2svg import Line
 from svgpathtools import svg2paths
+from svgwrite.utils import base64
 
 from . import SlicerSettings
 from ..printer import Command, ExtrudeTo, MoveTo, SwitchTool
 from ..sizing import Distance
 
-def visualize(commands: list[Command], settings: SlicerSettings = SlicerSettings()) -> None:
+def visualize(commands: list[Command], settings: SlicerSettings = SlicerSettings(), show: bool = False) -> str:
     """
     Visualize the toolpath commands using matplotlib.
     This function creates a visual representation of the commands, which are
@@ -65,4 +67,15 @@ def visualize(commands: list[Command], settings: SlicerSettings = SlicerSettings
     legend_handles.append(Line2D([0], [0], color='gray', lw=1, linestyle='--', label="Travel Move"))
 
     ax.legend(handles=legend_handles)
-    plt.show()
+    if show:
+        plt.show()
+
+    buffer = BytesIO()
+    plt.savefig(buffer, format="png")
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    graphic = base64.b64encode(image_png)
+    graphic = graphic.decode('utf-8')
+
+    return graphic

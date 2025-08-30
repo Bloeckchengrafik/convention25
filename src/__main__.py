@@ -38,5 +38,5 @@ async def main():
         await command.execute(printer)
         es.trap()
 
-asyncio.run(main())
-#visualize(optimize(slice("circuit.svg")))
+#asyncio.run(main())
+visualize(optimize(slice("circuit.svg")), show=True)
