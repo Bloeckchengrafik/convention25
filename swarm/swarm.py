@@ -296,7 +296,7 @@ class FtSwarmActor(FtSwarmIO):
         self._high_precision = high_precision
 
     async def post_init(self) -> None:
-        await self._swarm.send(self._port_name, "setActorType", await self.get_actor_type(), self._high_precision)
+        pass #await self._swarm.send(self._port_name, "setActorType", await self.get_actor_type(), self._high_precision)
 
     async def get_actor_type(self) -> Actor:
         return Actor.UNDEFINDED
@@ -564,12 +564,16 @@ class FtSwarmI2C(FtSwarmIO):
         await self._swarm.send(self._port_name, "onTrigger", trigger_event, actor.get_port_name(), p1)
 
 
+from asyncio import Event
+
 class FtSwarmStepper(FtSwarmIO):
     def __init__(self, swarm, port_name) -> None:
         super().__init__(swarm, port_name)
+        self.running = False
+        self.done_running_event = Event()
 
     async def post_init(self) -> None:
-        pass # await self._swarm.send(self._port_name, "setIOType", 20, 1)
+        await self._swarm.send(self._port_name, "subscribe", 1)
 
     async def homing(self, max_steps: int):
         await self._swarm.send(self._port_name, "homing", max_steps)
@@ -600,6 +604,39 @@ class FtSwarmStepper(FtSwarmIO):
         await self.run()
         await self.wait_done()
 
+    async def set_value(self, value: str) -> None:
+        self.running = bool(int(value.split(" ")[-1]))
+        if not self.running:
+            self.done_running_event.set()
+        else:
+            self.done_running_event.clear()
+
     async def wait_done(self):
-        while await self.is_running():
-            await asyncio.sleep(0.5)
+        await self.done_running_event.wait()
+
+class FtSwarmRotary(FtSwarmIO):
+    def __init__(self, swarm, port_name) -> None:
+        super().__init__(swarm, port_name)
+        self._value = 0
+        self._offset = 0
+
+    async def post_init(self) -> None:
+        await self._swarm.send(self._port_name, "subscribe", 100)
+
+    async def homing(self, max_steps: int):
+        await self._swarm.send(self._port_name, "homing", max_steps)
+
+    async def set_value(self, value: str) -> None:
+        self._value = int(value)
+
+    async def get_value(self) -> int:
+        return self._value + self._offset
+
+    async def set_offset(self, offset: int) -> None:
+        self._offset = offset
+
+    async def get_offset(self) -> int:
+        return self._offset
+
+    async def set_home(self) -> None:
+        self._offset = -self._value

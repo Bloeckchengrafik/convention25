@@ -1,8 +1,16 @@
 import asyncio
+import enum
+import os
+import sys
 from swarm.swarm import *
 
 from .serialhandler import SerialHandler
 
+class MicrostepMode(enum.IntEnum):
+    FULL = 1
+    HALF = 2
+    QUARTER = 3
+    SIXTEENTH = 4
 
 class FtSwarm(FtSwarmBase):
     def __init__(self, port: str, serial_handler_class=SerialHandler):
@@ -16,7 +24,7 @@ class FtSwarm(FtSwarmBase):
 
     async def send(self, port_name: str, command: str, *args: str | int | float) -> int | str | None:
         cmd = self._build_command(port_name, command, args)
-        result = await self.serial_handler.send_and_wait(cmd, command != "subscribe")
+        result = await self.serial_handler.send_and_wait(cmd)
 
 
         if result is None:
@@ -31,7 +39,8 @@ class FtSwarm(FtSwarmBase):
         message = await self.serial_handler.get_message()  # With caching
         if message is None:
             return
-        print("Swarm -> " + message)
+        if "debug" in os.environ:
+            print("Swarm -> " + message)
 
         if not message.startswith("S: "):
             self.logger.warning("Unexpected message: " + message)
@@ -131,3 +140,12 @@ class FtSwarm(FtSwarmBase):
 
     async def get_i2c(self, port_name: str) -> FtSwarmI2C:
         return await self._get_object(port_name, FtSwarmI2C)
+
+    async def get_stepper(self, port_name: str) -> FtSwarmStepper:
+        return await self._get_object(port_name, FtSwarmStepper)
+
+    async def get_rotary(self, port_name: str) -> FtSwarmRotary:
+        return await self._get_object(port_name, FtSwarmRotary)
+
+    async def set_microstep_mode(self, controller: str, mode: MicrostepMode):
+        await self.send(controller, "setMicrostepMode", mode.value)

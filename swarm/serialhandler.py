@@ -1,6 +1,7 @@
 import asyncio
 from logging import Logger
 from asyncio.locks import Lock
+import os
 import serial
 
 
@@ -38,7 +39,8 @@ class SerialHandler:
         if not self.ser.is_open:
             raise serial.SerialException("Serial port is not open")
 
-        print("Swarm <- " + cmd)
+        if "debug" in os.environ:
+            print("Swarm <- " + cmd)
         self.ser.write(cmd.encode("UTF-8") + b"\r\n")
 
         if not wait_for_return:

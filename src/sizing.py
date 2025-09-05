@@ -5,8 +5,7 @@ def get_gear_ratio(teeth_on_motor: int, teeth_on_sink: int) -> float:
         raise ValueError("Number of teeth cannot be zero.")
     return teeth_on_motor / teeth_on_sink
 
-worm_module = 1.5
-worm_lead = worm_module * pi
+worm_lead = 5
 
 class Distance:
     mm: float

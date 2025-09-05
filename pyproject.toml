@@ -10,4 +10,5 @@ dependencies = [
     "vpype-gcode>=0.13.0",
     "svgpathtools>=1.7.1",
     "pyserial>=3.5",
+    "fastapi[all]>=0.116.1",
 ]

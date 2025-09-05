@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Print System Control</title>
+    <!-- Inline favicon to prevent 404 errors -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --primary-dark: #0d47a1;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+            --text-color: #333;
+            --border-color: #dee2e6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--light-bg);
+            padding: 20px;
+            height: 100%;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            height: auto;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+                height: auto;
+            }
+
+            .card {
+                height: auto;
+                max-height: calc(100vh - 140px);
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 0.5rem;
+            color: var(--primary-dark);
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-ready {
+            background-color: var(--success-color);
+        }
+
+        .status-busy {
+            background-color: var(--warning-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-error {
+            background-color: var(--danger-color);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            table-layout: fixed; /* Fixed layout for better control */
+        }
+
+        table th, table td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        table th {
+            width: 30%;
+        }
+
+        table th {
+            background-color: var(--light-bg);
+        }
+
+        .file-list {
+            height: 250px;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .flow-rate-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .flow-rate-value {
+            width: 50px;
+            text-align: center;
+        }
+
+        pre {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-x: auto;
+            max-height: 160px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        object[type="image/svg+xml"] {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+            display: block;
+            image-rendering: auto;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        /* SVG rendering and visualization styles */
+        .svg-container {
+            display: block;
+            width: 100%;
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            transform: translateZ(0);
+            will-change: transform;
+        }
+
+        .svg-background-dark {
+            background-color: #333 !important;
+        }
+
+        .svg-background-grid {
+            background-image: linear-gradient(#ddd 1px, transparent 1px),
+                            linear-gradient(90deg, #ddd 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #svg-renderer svg, #print-preview svg {
+            max-width: 100%;
+            max-height: 380px;
+            object-fit: contain;
+        }
+
+        /* Visualization styles */
+        .visualization-container {
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            margin-top: 15px;
+        }
+
+        .highlight-container {
+            animation: pulse-highlight 2s infinite;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes pulse-highlight {
+            0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(66, 133, 244, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
+        }
+
+        .tab-container {
+            margin-bottom: 20px;
+        }
+
+        .tab-nav {
+            display: flex;
+            list-style: none;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-nav li {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-bottom: -1px;
+        }
+
+        .tab-nav li.active {
+            background-color: white;
+            border-color: var(--border-color);
+            border-bottom: 1px solid white;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab-content {
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            background-color: white;
+        }
+
+        .tab-panel {
+            display: none;
+            height: 400px;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .tab-nav .badge {
+            animation: pulse-highlight 1.5s infinite;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        /* SVG controls */
+        .svg-controls {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            z-index: 10;
+            display: flex;
+            gap: 5px;
+        }
+
+        .svg-control-btn {
+            padding: 3px 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .svg-background-toggle {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            z-index: 10;
+        }
+
+        #svg-renderer, #print-preview {
+            width: 100%;
+            max-height: 400px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: white;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* Visualization img styles */
+        .viz-image {
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            max-height: 280px; /* Control maximum height */
+            border: 1px solid #ccc;
+            margin-top: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            object-fit: contain; /* Maintain aspect ratio */
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            image-rendering: auto;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>3D Print System Control</h1>
+            <div class="system-status">
+                <span class="status-indicator" id="status-light"></span>
+                <span id="status-text">Loading...</span>
+            </div>
+        </header>
+
+        <div class="card">
+            <h2>Files & Printing</h2>
+            <div class="tab-container">
+                <ul class="tab-nav">
+                    <li class="active" data-tab="file-list-tab">File List</li>
+                    <li data-tab="file-content-tab">File Content</li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-panel active" id="file-list-tab">
+                        <div class="file-list" id="file-list">
+                            <p>Loading files...</p>
+                        </div>
+                    </div>
+                    <div class="tab-panel" id="file-content-tab">
+                        <h3 id="file-content-header">No file selected</h3>
+                        <div id="file-content-container">
+                            <div id="svg-renderer" class="hidden">
+                                <button class="svg-control-btn svg-background-toggle">Change Background</button>
+                                <div class="svg-controls">
+                                    <button class="svg-control-btn" data-action="zoom-in">Zoom In</button>
+                                    <button class="svg-control-btn" data-action="zoom-out">Zoom Out</button>
+                                    <button class="svg-control-btn" data-action="reset">Reset</button>
+                                </div>
+                            </div>
+                            <pre id="file-content-display">Select a file to view its content</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="print-controls">
+                <p>Select a file to print</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Configuration</h2>
+            <div class="flow-rate-section">
+                <h3>Flow Rate Control</h3>
+                <div class="flow-rate-container">
+                    <input type="range" id="flow-rate-slider" min="0" max="10" step="0.1" value="1">
+                    <input type="number" id="flow-rate-input" min="0" max="10" step="0.1" class="flow-rate-value" value="1">
+                </div>
+                <button id="save-flow-rate" class="btn">Save Flow Rate</button>
+            </div>
+            <div class="system-info">
+                <h3>System Information</h3>
+                <div id="system-info-content">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Current Print Job</h2>
+            <div id="print-status">
+                <p>No active print job</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Toolpath & Operations</h2>
+            <div class="tab-container">
+                <ul class="tab-nav">
+                    <li class="active" data-tab="visualization-tab">Toolpath Visualization</li>
+                    <li data-tab="operations-tab">Operations Log</li>
+                </ul>
+                <div class="tab-content">
+                    <!-- Visualization Tab -->
+                    <div class="tab-panel active" id="visualization-tab">
+                        <p id="preview-instructions">The slicing visualization will appear here when you start a print job.</p>
+                        <!-- Direct visualization display -->
+                        <div id="visualization-container" class="visualization-container" style="display: none; max-height: 380px; overflow-y: auto; transform: translateZ(0);">
+                            <div style="display: flex; justify-content: center; align-items: center; height: 280px; min-height: 150px; transform: translateZ(0);">
+                                <img id="visualization-image" class="viz-image" alt="Toolpath visualization">
+                            </div>
+                            <p style="margin-top: 10px; font-style: italic; color: #555;">
+                                This shows how your SVG will be printed with actual toolpaths
+                            </p>
+                            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                                <a id="visualization-fullscreen" href="/api/visualization" target="_blank" class="btn">
+                                    Open in Full Screen
+                                </a>
+                                <button id="refresh-viz-btn" class="btn">Refresh Visualization</button>
+                            </div>
+                        </div>
+
+                        <!-- Debug section (hidden by default) -->
+                        <div id="visualization-debug" style="margin-top: 20px; padding: 15px; background: #f0f0f0; border-left: 3px solid #999; display: none;">
+                            <strong>Debug Information</strong>
+                            <pre id="visualization-debug-info" style="margin-top: 5px; white-space: pre-wrap;"></pre>
+                            <button id="debug-fetch-viz-btn" class="btn" style="margin-top: 10px;">Fetch Visualization Manually</button>
+                        </div>
+                    </div>
+
+                    <!-- Operations Log Tab -->
+                    <div class="tab-panel" id="operations-tab">
+                        <div id="operations-log" style="height: 350px; max-height: 350px; overflow-y: auto; overflow-x: hidden; padding-right: 10px;">
+                            <p>System initialized</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        // API endpoint base URL
+        const API_BASE_URL = '/api';
+
+        // State management
+        const state = {
+            systemStatus: 'initializing',
+            files: {},
+            selectedFile: null,
+            flowRate: 1.0,
+            currentPrintJob: null,
+            printHistory: [],
+            visualizationImage: null,
+            checkingVisualization: false,
+            visualizationCheckInterval: null,
+            svgBackgroundMode: 'dark', // white, dark, grid
+            svgZoomLevel: 1,
+            debugMode: false
+        };
+
+        // DOM Elements
+        const elements = {
+            statusLight: document.getElementById('status-light'),
+            statusText: document.getElementById('status-text'),
+            fileList: document.getElementById('file-list'),
+            fileContentHeader: document.getElementById('file-content-header'),
+            fileContentDisplay: document.getElementById('file-content-display'),
+            svgRenderer: document.getElementById('svg-renderer'),
+            fileContentContainer: document.getElementById('file-content-container'),
+            printControls: document.getElementById('print-controls'),
+            flowRateSlider: document.getElementById('flow-rate-slider'),
+            flowRateInput: document.getElementById('flow-rate-input'),
+            saveFlowRateBtn: document.getElementById('save-flow-rate'),
+            systemInfoContent: document.getElementById('system-info-content'),
+            printStatus: document.getElementById('print-status'),
+            visualizationContainer: document.getElementById('visualization-container'),
+            visualizationImage: document.getElementById('visualization-image'),
+            previewInstructions: document.getElementById('preview-instructions'),
+            refreshVizBtn: document.getElementById('refresh-viz-btn'),
+            debugFetchVizBtn: document.getElementById('debug-fetch-viz-btn'),
+            visualizationDebug: document.getElementById('visualization-debug'),
+            visualizationDebugInfo: document.getElementById('visualization-debug-info'),
+            operationsLog: document.getElementById('operations-log'),
+            toast: document.getElementById('toast'),
+            tabNavItems: document.querySelectorAll('.tab-nav li'),
+            tabPanels: document.querySelectorAll('.tab-panel')
+        };
+
+        // Tab switching functionality
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.closest('.tab-nav li')) {
+                const tab = e.target.closest('.tab-nav li');
+                const tabId = tab.getAttribute('data-tab');
+                const tabContainer = tab.closest('.tab-container');
+
+                if (!tabContainer) return;
+
+                // Update tab navigation in this container
+                const navItems = tabContainer.querySelectorAll('.tab-nav li');
+                navItems.forEach(item => item.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Remove any notification badge when clicking on a tab
+                const badge = tab.querySelector('.badge');
+                if (badge) badge.remove();
+
+                // Show the selected tab panel
+                const panels = tabContainer.querySelectorAll('.tab-panel');
+                panels.forEach(panel => {
+                    panel.classList.remove('active');
+                    if (panel.id === tabId) {
+                        panel.classList.add('active');
+                    }
+                });
+            }
+        });
+
+        // Helper function for API calls
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error (${response.status}): ${errorText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                showToast(`Error: ${error.message}`);
+                return null;
+            }
+        }
+
+        // Toast notification
+        function showToast(message, duration = 3000) {
+            elements.toast.textContent = message;
+            elements.toast.classList.add('show');
+
+            setTimeout(() => {
+                elements.toast.classList.remove('show');
+            }, duration);
+        }
+
+        // Log operations
+        function logOperation(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('p');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            elements.operationsLog.appendChild(logEntry);
+            elements.operationsLog.scrollTop = elements.operationsLog.scrollHeight;
+
+            // Show a badge on the operations tab if it's not currently active
+            const operationsTab = document.querySelector('.tab-nav li[data-tab="operations-tab"]');
+            const visualizationTab = document.querySelector('.tab-nav li[data-tab="visualization-tab"]');
+
+            if (operationsTab && visualizationTab && visualizationTab.classList.contains('active')) {
+                if (!operationsTab.querySelector('.badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge';
+                    badge.textContent = 'New';
+                    operationsTab.appendChild(badge);
+                }
+            }
+        }
+
+        // Update system status display
+        function updateSystemStatus() {
+            switch (state.systemStatus) {
+                case 'ready':
+                    elements.statusLight.className = 'status-indicator status-ready';
+                    elements.statusText.textContent = 'System Ready';
+                    break;
+                case 'initializing':
+                    elements.statusLight.className = 'status-indicator status-busy';
+                    elements.statusText.textContent = 'Initializing...';
+                    break;
+                case 'printing':
+                    elements.statusLight.className = 'status-indicator status-busy';
+                    elements.statusText.textContent = 'Printing...';
+                    break;
+                case 'error':
+                    elements.statusLight.className = 'status-indicator status-error';
+                    elements.statusText.textContent = 'Error';
+                    break;
+                default:
+                    elements.statusLight.className = 'status-indicator';
+                    elements.statusText.textContent = 'Unknown';
+            }
+        }
+
+        // Update print controls based on selected file
+        function updatePrintControls() {
+            if (state.selectedFile) {
+                elements.printControls.innerHTML = `
+                    <p>Selected file: <strong>${state.selectedFile}</strong></p>
+                    <button id="start-print-btn" class="btn">Start Printing</button>
+                `;
+
+                document.getElementById('start-print-btn').addEventListener('click', startPrint);
+            } else {
+                elements.printControls.innerHTML = '<p>Select a file to print</p>';
+            }
+        }
+
+        // Select a file from the list
+        function selectFile(filename) {
+            state.selectedFile = filename;
+            elements.fileContentHeader.textContent = filename;
+
+            const content = state.files[filename] || 'Loading content...';
+
+            // Check if the file is SVG
+            if (filename.toLowerCase().endsWith('.svg')) {
+                // Use the dedicated SVG endpoint for rendering
+                elements.svgRenderer.innerHTML = `
+                    <button class="svg-control-btn svg-background-toggle">Change Background</button>
+                    <div class="svg-controls">
+                        <button class="svg-control-btn" data-action="zoom-in">Zoom In</button>
+                        <button class="svg-control-btn" data-action="zoom-out">Zoom Out</button>
+                        <button class="svg-control-btn" data-action="reset">Reset</button>
+                    </div>
+                    <div class="svg-container" style="display: flex; justify-content: center; align-items: center; height: 280px; max-height: 280px; transform: translateZ(0);">
+                        <object data="/svg/${encodeURIComponent(filename)}" type="image/svg+xml" style="max-height: 260px; width: auto;">SVG cannot be displayed</object>
+                    </div>
+                `;
+                elements.svgRenderer.classList.remove('hidden');
+                elements.fileContentDisplay.classList.add('hidden');
+
+                // Apply dark background by default
+                const svgContainer = elements.svgRenderer.querySelector('.svg-container');
+                if (svgContainer) {
+                    svgContainer.classList.add('svg-background-dark');
+                }
+
+                // Attach event listeners
+                const backgroundToggle = elements.svgRenderer.querySelector('.svg-background-toggle');
+                if (backgroundToggle) {
+                    backgroundToggle.addEventListener('click', toggleSvgBackground);
+                    backgroundToggle.textContent = `Background: ${state.svgBackgroundMode.charAt(0).toUpperCase() + state.svgBackgroundMode.slice(1)}`;
+                }
+                setupSvgZoomControls('#svg-renderer');
+            } else {
+                // Display text content
+                elements.fileContentDisplay.textContent = content;
+                elements.fileContentDisplay.classList.remove('hidden');
+                elements.svgRenderer.classList.add('hidden');
+            }
+
+            // Switch to content tab
+            elements.tabNavItems.forEach(tab => {
+                if (tab && tab.getAttribute('data-tab') === 'file-content-tab') {
+                    tab.click();
+                }
+            });
+
+            updatePrintControls();
+            logOperation(`Selected file: ${filename}`);
+        }
+
+        // Start printing the selected file
+        async function startPrint() {
+            if (!state.selectedFile) return;
+
+            const printBtn = document.getElementById('start-print-btn');
+            if (!printBtn) {
+                console.error("Print button not found");
+                return;
+            }
+
+            printBtn.disabled = true;
+            printBtn.textContent = 'Starting...';
+
+            try {
+                const response = await apiCall(`/print?file=${encodeURIComponent(state.selectedFile)}`, 'POST');
+                console.log("Print response:", response);
+
+                if (response && response.status === 'success') {
+                    state.systemStatus = 'printing';
+                    state.currentPrintJob = {
+                        file: state.selectedFile,
+                        startTime: new Date().toISOString(),
+                        isSvg: state.selectedFile.toLowerCase().endsWith('.svg')
+                    };
+
+                    updateSystemStatus();
+                    updatePrintStatus();
+
+                    // Reset visualization
+                    state.visualizationImage = null;
+                    elements.visualizationContainer.style.display = 'none';
+                    elements.previewInstructions.textContent = 'Processing SVG and generating toolpath visualization...';
+
+                    showToast(`Started printing ${state.selectedFile}`);
+                    logOperation(`Started printing ${state.selectedFile}`);
+
+                    // Poll for status until print is complete
+                    pollPrintStatus();
+
+                    // Start checking for visualization
+                    startVisualizationCheck();
+                } else {
+                    throw new Error(response?.detail || 'Failed to start print');
+                }
+            } catch (error) {
+                console.error('Print start error:', error);
+                showToast(`Error starting print: ${error.message}`);
+                logOperation(`Error starting print: ${error.message}`);
+            } finally {
+                printBtn.disabled = false;
+                printBtn.textContent = 'Start Printing';
+            }
+        }
+
+        // Start checking for visualization
+        function startVisualizationCheck() {
+            // Clear any existing interval
+            clearInterval(state.visualizationCheckInterval);
+
+            // Schedule first check almost immediately
+            setTimeout(checkForVisualization, 1000);
+
+            // Then check periodically
+            state.visualizationCheckInterval = setInterval(checkForVisualization, 3000);
+
+            // Stop checking after 30 seconds regardless
+            setTimeout(() => {
+                clearInterval(state.visualizationCheckInterval);
+                if (!state.visualizationImage) {
+                    elements.previewInstructions.textContent = 'No visualization available for this print job.';
+                }
+            }, 30000);
+        }
+
+        // Check for visualization
+        async function checkForVisualization() {
+            if (state.checkingVisualization || state.visualizationImage) {
+                return;
+            }
+
+            state.checkingVisualization = true;
+            try {
+                const result = await fetchVisualizationData();
+                if (result) {
+                    // Visualization was found and displayed
+                    clearInterval(state.visualizationCheckInterval);
+                }
+            } finally {
+                state.checkingVisualization = false;
+            }
+        }
+
+        // Update the current print status display
+        function updatePrintStatus() {
+            if (state.currentPrintJob) {
+                const startTime = new Date(state.currentPrintJob.startTime);
+                const duration = Math.round((new Date() - startTime) / 1000);
+
+                elements.printStatus.innerHTML = `
+                    <table>
+                        <tr>
+                            <th>File:</th>
+                            <td>
+                                ${state.currentPrintJob.file}
+                                ${state.currentPrintJob.isSvg ?
+                                    ' <span class="badge">SVG</span>' : ''}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Started:</th>
+                            <td>${startTime.toLocaleTimeString()}</td>
+                        </tr>
+                        <tr>
+                            <th>Duration:</th>
+                            <td>${formatTime(duration)}</td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>Printing</td>
+                        </tr>
+                    </table>
+                `;
+            } else {
+                elements.printStatus.innerHTML = '<p>No active print job</p>';
+            }
+        }
+
+        // Format seconds into MM:SS
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // Poll for print status
+        function pollPrintStatus() {
+            if (!state.currentPrintJob) return;
+
+            // Update the duration
+            updatePrintStatus();
+
+            // Debug info if enabled
+            if (state.debugMode && elements.visualizationDebugInfo) {
+                elements.visualizationDebug.style.display = 'block';
+            }
+
+            // Check the root endpoint for status
+            apiCall('').then(data => {
+                // Log debug info if enabled
+                if (state.debugMode && elements.visualizationDebugInfo) {
+                    elements.visualizationDebugInfo.textContent = JSON.stringify(data, null, 2);
+                }
+
+                // If currently_printing_file is null, print is complete
+                if (data && !data.currently_printing_file && state.currentPrintJob) {
+                    // Print job completed
+                    state.printHistory.push({
+                        ...state.currentPrintJob,
+                        endTime: new Date().toISOString(),
+                        status: 'completed'
+                    });
+
+                    state.currentPrintJob = null;
+                    state.systemStatus = 'ready';
+
+                    updateSystemStatus();
+                    updatePrintStatus();
+
+                    // Add completed badge to visualization if it exists
+                    if (elements.visualizationContainer.style.display !== 'none') {
+                        if (!elements.visualizationContainer.querySelector('.print-completed-badge')) {
+                            const completedBadge = document.createElement('div');
+                            completedBadge.className = 'badge print-completed-badge';
+                            completedBadge.style = 'display:block;margin:10px auto;width:fit-content;';
+                            completedBadge.textContent = 'Print Completed';
+                            elements.visualizationContainer.appendChild(completedBadge);
+                        }
+                        elements.previewInstructions.textContent = 'Printing completed! Final toolpath visualization:';
+
+                        // Activate the visualization tab to show completion
+                        document.querySelector('.tab-nav li[data-tab="visualization-tab"]').click();
+                    }
+
+                    showToast('Print job completed successfully');
+                    logOperation('Print job completed successfully');
+                } else if (state.currentPrintJob) {
+                    // Continue polling
+                    setTimeout(pollPrintStatus, 1000);
+                }
+            }).catch(error => {
+                console.error('Error polling print status:', error);
+                setTimeout(pollPrintStatus, 5000); // Retry with longer interval on error
+            });
+        }
+
+        // Load files from the server
+        async function loadFiles() {
+            const files = await apiCall('/files');
+
+            if (files) {
+                state.files = files;
+
+                if (Object.keys(files).length === 0) {
+                    elements.fileList.innerHTML = '<p>No files available</p>';
+                } else {
+                    const fileListHtml = Object.keys(files).map(filename => `
+                        <div class="file-item">
+                            <button class="btn" onclick="selectFile('${filename}')">
+                                ${filename}
+                                ${filename.toLowerCase().endsWith('.svg') ?
+                                  ' <span class="badge">SVG</span>' : ''}
+                            </button>
+                        </div>
+                    `).join('');
+
+                    elements.fileList.innerHTML = fileListHtml;
+                    logOperation(`Loaded ${Object.keys(files).length} files`);
+                }
+            } else {
+                elements.fileList.innerHTML = '<p>Error loading files</p>';
+            }
+        }
+
+        // Load flow rate from the server
+        async function loadFlowRate() {
+            const flowRateData = await apiCall('/config/flowrate');
+
+            if (flowRateData && flowRateData.flow_rate !== undefined) {
+                state.flowRate = flowRateData.flow_rate;
+                elements.flowRateSlider.value = state.flowRate;
+                elements.flowRateInput.value = state.flowRate;
+                logOperation(`Loaded flow rate: ${state.flowRate}`);
+            }
+        }
+
+        // Save flow rate to the server
+        async function saveFlowRate() {
+            const flowRate = parseFloat(elements.flowRateInput.value);
+
+            if (isNaN(flowRate) || flowRate < 0 || flowRate > 10) {
+                showToast('Flow rate must be between 0 and 10');
+                return;
+            }
+
+            elements.saveFlowRateBtn.disabled = true;
+
+            try {
+                const response = await apiCall('/config/flowrate?flow_rate='+flowRate, 'POST', {  });
+
+                if (response && response.status === 'success') {
+                    state.flowRate = flowRate;
+                    showToast('Flow rate updated successfully');
+                    logOperation(`Updated flow rate to ${flowRate}`);
+                } else {
+                    throw new Error(response?.detail || 'Failed to update flow rate');
+                }
+            } catch (error) {
+                console.error('Flow rate update error:', error);
+                showToast(`Error: ${error.message}`);
+                logOperation(`Error updating flow rate: ${error.message}`);
+
+                // Reset input to current state value
+                elements.flowRateSlider.value = state.flowRate;
+                elements.flowRateInput.value = state.flowRate;
+            } finally {
+                elements.saveFlowRateBtn.disabled = false;
+            }
+        }
+
+        // Fetch visualization data from the server
+        async function fetchVisualizationData() {
+            elements.previewInstructions.textContent = 'Checking for visualization...';
+
+            try {
+                const response = await fetch('/api/visualization/data');
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data && data.image_data) {
+                        console.log("Visualization received, length:", data.image_data.length);
+                        state.visualizationImage = data.image_data;
+
+                        // Display the visualization
+                        elements.visualizationImage.src = "data:image/png;base64," + data.image_data;
+                        elements.visualizationContainer.style.display = 'block';
+                        elements.previewInstructions.textContent = 'Toolpath visualization generated:';
+                        elements.previewInstructions.style.marginBottom = '10px';
+
+                        // Activate the visualization tab
+                        document.querySelector('.tab-nav li[data-tab="visualization-tab"]').click();
+
+                        // Highlight and scroll to it
+                        elements.visualizationContainer.classList.add('highlight-container');
+                        setTimeout(() => {
+                            document.querySelector('.tab-nav li[data-tab="visualization-tab"]').scrollIntoView({behavior: "smooth", block: "nearest"});
+                        }, 100);
+
+                        // Remove highlight after 3 seconds
+                        setTimeout(() => {
+                            elements.visualizationContainer.classList.remove('highlight-container');
+                        }, 3000);
+
+                        return true;
+                    }
+                } else if (response.status === 404) {
+                    console.log("No visualization available yet");
+                } else {
+                    console.warn("Error fetching visualization:", response.status);
+                }
+            } catch (error) {
+                console.error("Error fetching visualization:", error);
+            }
+
+            return false;
+        }
+
+        // Check system status
+        async function checkSystemStatus() {
+            const status = await apiCall('');
+
+            if (status) {
+                // Debug info if enabled
+                if (state.debugMode && elements.visualizationDebugInfo) {
+                    elements.visualizationDebug.style.display = 'block';
+                    elements.visualizationDebugInfo.textContent = JSON.stringify(status, null, 2);
+                }
+
+                // Update system status
+                state.systemStatus = status.status || 'unknown';
+                updateSystemStatus();
+
+                // Check for visualization availability
+                if (status.has_visualization && !state.visualizationImage) {
+                    console.log("Visualization available according to status. Fetching...");
+                    fetchVisualizationData();
+                }
+
+                // Update print job status
+                if (status.currently_printing_file) {
+                    state.systemStatus = 'printing';
+
+                    // Create print job if not exists
+                    if (!state.currentPrintJob) {
+                        state.currentPrintJob = {
+                            file: status.currently_printing_file,
+                            startTime: new Date().toISOString(),
+                            isSvg: status.currently_printing_file.toLowerCase().endsWith('.svg')
+                        };
+                        pollPrintStatus();
+                    }
+                }
+
+                // Update system info
+                let systemInfoHtml = '<table>';
+                for (const [key, value] of Object.entries(status)) {
+                    if (typeof value !== 'object' && key !== 'currently_printing_img') {
+                        systemInfoHtml += `
+                            <tr>
+                                <th>${key}:</th>
+                                <td>${value}</td>
+                            </tr>
+                        `;
+                    }
+                }
+                systemInfoHtml += '</table>';
+                elements.systemInfoContent.innerHTML = systemInfoHtml;
+            }
+        }
+
+        // Toggle SVG background
+        function toggleSvgBackground(event) {
+            const container = event.target.closest('#svg-renderer, #print-preview');
+            const svgContainer = container.querySelector('.svg-container');
+
+            // Remove existing classes
+            svgContainer.classList.remove('svg-background-dark', 'svg-background-grid');
+
+            // Cycle through background modes
+            switch(state.svgBackgroundMode) {
+                case 'dark':
+                    state.svgBackgroundMode = 'grid';
+                    svgContainer.classList.add('svg-background-grid');
+                    break;
+                case 'grid':
+                    state.svgBackgroundMode = 'white';
+                    break;
+                case 'white':
+                    state.svgBackgroundMode = 'dark';
+                    svgContainer.classList.add('svg-background-dark');
+                    break;
+            }
+
+            event.target.textContent = `Background: ${state.svgBackgroundMode.charAt(0).toUpperCase() + state.svgBackgroundMode.slice(1)}`;
+        }
+
+        // Setup SVG zoom controls
+        function setupSvgZoomControls(containerSelector) {
+            const container = document.querySelector(containerSelector);
+            if (!container) return;
+
+            const zoomInBtn = container.querySelector('[data-action="zoom-in"]');
+            const zoomOutBtn = container.querySelector('[data-action="zoom-out"]');
+            const resetBtn = container.querySelector('[data-action="reset"]');
+            const svgContainer = container.querySelector('.svg-container');
+
+            if (zoomInBtn && svgContainer) {
+                zoomInBtn.addEventListener('click', () => {
+                    state.svgZoomLevel *= 1.2;
+                    updateZoom(svgContainer);
+                });
+            }
+
+            if (zoomOutBtn && svgContainer) {
+                zoomOutBtn.addEventListener('click', () => {
+                    state.svgZoomLevel /= 1.2;
+                    if (state.svgZoomLevel < 0.5) state.svgZoomLevel = 0.5;
+                    updateZoom(svgContainer);
+                });
+            }
+
+            if (resetBtn && svgContainer) {
+                resetBtn.addEventListener('click', () => {
+                    state.svgZoomLevel = 1;
+                    updateZoom(svgContainer);
+                });
+            }
+
+            // Add mouse wheel zoom if container exists
+            if (svgContainer) {
+                svgContainer.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        state.svgZoomLevel *= 1.1;
+                    } else {
+                        state.svgZoomLevel /= 1.1;
+                        if (state.svgZoomLevel < 0.5) state.svgZoomLevel = 0.5;
+                    }
+                    updateZoom(svgContainer);
+                });
+            }
+        }
+
+        // Update zoom level on SVG container
+        function updateZoom(container) {
+            container.style.transform = `scale(${state.svgZoomLevel})`;
+            container.style.transformOrigin = 'center center';
+        }
+
+        // Sync flow rate slider and input
+        elements.flowRateSlider.addEventListener('input', () => {
+            elements.flowRateInput.value = elements.flowRateSlider.value;
+        });
+
+        elements.flowRateInput.addEventListener('input', () => {
+            const value = parseFloat(elements.flowRateInput.value);
+            if (!isNaN(value) && value >= 0 && value <= 10) {
+                elements.flowRateSlider.value = value;
+            }
+        });
+
+        // Save flow rate button
+        elements.saveFlowRateBtn.addEventListener('click', saveFlowRate);
+
+        // Refresh visualization button
+        elements.refreshVizBtn.addEventListener('click', fetchVisualizationData);
+
+        // Debug fetch button
+        if (elements.debugFetchVizBtn) {
+            elements.debugFetchVizBtn.addEventListener('click', fetchVisualizationData);
+        }
+
+        // Make selectFile available globally
+        window.selectFile = selectFile;
+
+        // Initialize the application
+        async function init() {
+            logOperation('Initializing application');
+
+            // Initial data loading
+            await Promise.all([
+                checkSystemStatus(),
+                loadFiles(),
+                loadFlowRate()
+            ]);
+
+            // Check for existing visualization
+            await fetchVisualizationData();
+
+            // Set up periodic refresh
+            setInterval(checkSystemStatus, 5000);
+            setInterval(loadFiles, 30000);
+
+            // Setup keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Shift+D to toggle debug mode
+                if (e.shiftKey && e.key === 'D') {
+                    state.debugMode = !state.debugMode;
+                    elements.visualizationDebug.style.display = state.debugMode ? 'block' : 'none';
+                    console.log("Debug mode:", state.debugMode);
+                }
+            });
+
+            logOperation('Application initialized');
+        }
+
+        // Start the app when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
