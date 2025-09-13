@@ -62,7 +62,7 @@ async def initialize_app():
     global storage
     global es
 
-    swarm = FtSwarm("/dev/ttyUSB0")
+    swarm = FtSwarm("/dev/ttyUSB1")
     # swarm.logger.setLevel(logging.DEBUG)
     await swarm.set_microstep_mode("ftSwarm400", MicrostepMode.HALF)
 
@@ -173,6 +173,179 @@ async def get_flow_rate():
         Dict with the current flow rate
     """
     return {"flow_rate": config.flow_rate}
+
+@api_router.post("/config/tool_timing")
+async def set_tool_timing(
+    lead_time: float = Query(..., ge=0.0, le=1.0),
+    lag_time: float = Query(..., ge=0.0, le=1.0),
+    retraction_distance: int = Query(..., ge=0, le=500),
+    retraction_speed: int = Query(..., ge=100, le=5000)
+):
+    """
+    Update the tool timing configuration.
+
+    Args:
+        lead_time: Time in seconds to start tool early (0.0 to 1.0)
+        lag_time: Time in seconds to stop tool early (0.0 to 1.0)
+        retraction_distance: Steps to retract during travel (0 to 500)
+        retraction_speed: Speed for retraction moves (100 to 5000)
+
+    Returns:
+        Dict with status and updated values
+    """
+    try:
+        config.tool_lead_time = lead_time
+        config.tool_lag_time = lag_time
+        config.retraction_distance = retraction_distance
+        config.retraction_speed = retraction_speed
+        config.save()
+
+        # Update the printer's tool timing if it exists
+        if printer is not None:
+            printer.update_tool_timing(lead_time, lag_time, retraction_distance, retraction_speed)
+
+        logger.info(f"Tool timing updated: lead={lead_time}s, lag={lag_time}s, retraction={retraction_distance} steps @ {retraction_speed} speed")
+        return {
+            "status": "success",
+            "tool_lead_time": lead_time,
+            "tool_lag_time": lag_time,
+            "retraction_distance": retraction_distance,
+            "retraction_speed": retraction_speed
+        }
+    except Exception as e:
+        logger.error(f"Failed to update tool timing: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update tool timing: {str(e)}")
+
+@api_router.get("/config/tool_timing")
+async def get_tool_timing():
+    """
+    Get the current tool timing configuration.
+
+    Returns:
+        Dict with the current tool timing values
+    """
+    return {
+        "tool_lead_time": config.tool_lead_time,
+        "tool_lag_time": config.tool_lag_time,
+        "retraction_distance": config.retraction_distance,
+        "retraction_speed": config.retraction_speed
+    }
+
+@api_router.post("/config/tool_timing/lead_time")
+async def set_tool_lead_time(lead_time: float = Query(..., ge=0.0, le=1.0)):
+    """
+    Update only the tool lead time.
+
+    Args:
+        lead_time: Time in seconds to start tool early (0.0 to 1.0)
+
+    Returns:
+        Dict with status and the updated lead time
+    """
+    try:
+        config.tool_lead_time = lead_time
+        config.save()
+
+        if printer is not None:
+            printer.update_tool_timing(
+                lead_time,
+                config.tool_lag_time,
+                config.retraction_distance,
+                config.retraction_speed
+            )
+
+        logger.info(f"Tool lead time updated to {lead_time}s")
+        return {"status": "success", "tool_lead_time": lead_time}
+    except Exception as e:
+        logger.error(f"Failed to update tool lead time: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update tool lead time: {str(e)}")
+
+@api_router.post("/config/tool_timing/lag_time")
+async def set_tool_lag_time(lag_time: float = Query(..., ge=0.0, le=1.0)):
+    """
+    Update only the tool lag time.
+
+    Args:
+        lag_time: Time in seconds to stop tool early (0.0 to 1.0)
+
+    Returns:
+        Dict with status and the updated lag time
+    """
+    try:
+        config.tool_lag_time = lag_time
+        config.save()
+
+        if printer is not None:
+            printer.update_tool_timing(
+                config.tool_lead_time,
+                lag_time,
+                config.retraction_distance,
+                config.retraction_speed
+            )
+
+        logger.info(f"Tool lag time updated to {lag_time}s")
+        return {"status": "success", "tool_lag_time": lag_time}
+    except Exception as e:
+        logger.error(f"Failed to update tool lag time: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update tool lag time: {str(e)}")
+
+@api_router.post("/config/tool_timing/retraction_distance")
+async def set_retraction_distance(retraction_distance: int = Query(..., ge=0, le=500)):
+    """
+    Update only the retraction distance.
+
+    Args:
+        retraction_distance: Steps to retract during travel (0 to 500)
+
+    Returns:
+        Dict with status and the updated retraction distance
+    """
+    try:
+        config.retraction_distance = retraction_distance
+        config.save()
+
+        if printer is not None:
+            printer.update_tool_timing(
+                config.tool_lead_time,
+                config.tool_lag_time,
+                retraction_distance,
+                config.retraction_speed
+            )
+
+        logger.info(f"Retraction distance updated to {retraction_distance} steps")
+        return {"status": "success", "retraction_distance": retraction_distance}
+    except Exception as e:
+        logger.error(f"Failed to update retraction distance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update retraction distance: {str(e)}")
+
+@api_router.post("/config/tool_timing/retraction_speed")
+async def set_retraction_speed(retraction_speed: int = Query(..., ge=100, le=5000)):
+    """
+    Update only the retraction speed.
+
+    Args:
+        retraction_speed: Speed for retraction moves (100 to 5000)
+
+    Returns:
+        Dict with status and the updated retraction speed
+    """
+    try:
+        config.retraction_speed = retraction_speed
+        config.save()
+
+        if printer is not None:
+            printer.update_tool_timing(
+                config.tool_lead_time,
+                config.tool_lag_time,
+                config.retraction_distance,
+                retraction_speed
+            )
+
+        logger.info(f"Retraction speed updated to {retraction_speed}")
+        return {"status": "success", "retraction_speed": retraction_speed}
+    except Exception as e:
+        logger.error(f"Failed to update retraction speed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update retraction speed: {str(e)}")
 
 @api_router.get("/svg/{filename}")
 async def get_svg(filename: str):
@@ -317,7 +490,8 @@ async def print_file(file: str = Query(..., description="Filename to print")):
             await printer.home()
             es.trap()
 
-            for command in commands:
+            for index, command in enumerate(commands):
+                print(f">> COMMAND {index + 1}/{len(commands)}: {command}")
                 await command.execute(printer)
                 es.trap()
 
@@ -408,6 +582,98 @@ async def rot_home():
 @api_router.post("/storage/move/rot_act")
 async def rot_act():
     asyncio.create_task(storage.rotator.action())
+
+@api_router.post("/storage/move/y_set")
+async def y_set(pos: int = Query(..., description="pos")):
+    asyncio.create_task(storage.storage_y_axis.goto(pos))
+
+@api_router.post("/printer/move/home")
+async def printer_home():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    asyncio.create_task(printer.home())
+    return {"status": "success", "message": "Homing printer"}
+
+@api_router.post("/printer/move/home_no_finalize")
+async def printer_home_no_finalize():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    asyncio.create_task(printer.home(False))
+    return {"status": "success", "message": "Homing printer without finalization"}
+
+@api_router.post("/printer/move/x")
+async def printer_move_x(amount: int = Query(..., description="amount"), speed: int = Query(..., description="speed")):
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.x_axis.set_speed(abs(speed))
+    await printer.x_axis.set_distance(amount, True)
+    await printer.x_axis.run()
+    return {"status": "success", "message": f"Moving X axis {amount} steps at speed {speed}"}
+
+@api_router.post("/printer/move/y")
+async def printer_move_y(amount: int = Query(..., description="amount"), speed: int = Query(..., description="speed")):
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.y_axis.set_speed(abs(speed))
+    await printer.y_axis.set_distance(amount, True)
+    await printer.y_axis.run()
+    return {"status": "success", "message": f"Moving Y axis {amount} steps at speed {speed}"}
+
+@api_router.post("/printer/move/tool0")
+async def printer_move_tool0(amount: int = Query(..., description="amount"), speed: int = Query(..., description="speed")):
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.tools[0].set_speed(abs(speed))
+    await printer.tools[0].set_distance(amount, True)
+    await printer.tools[0].run()
+    return {"status": "success", "message": f"Moving tool 0 {amount} steps at speed {speed}"}
+
+@api_router.post("/printer/move/tool1")
+async def printer_move_tool1(amount: int = Query(..., description="amount"), speed: int = Query(..., description="speed")):
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.tools[1].set_speed(abs(speed))
+    await printer.tools[1].set_distance(amount, True)
+    await printer.tools[1].run()
+    return {"status": "success", "message": f"Moving tool 1 {amount} steps at speed {speed}"}
+
+@api_router.post("/printer/stop/x")
+async def printer_stop_x():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.x_axis.stop()
+    return {"status": "success", "message": "X axis stopped"}
+
+@api_router.post("/printer/stop/y")
+async def printer_stop_y():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.y_axis.stop()
+    return {"status": "success", "message": "Y axis stopped"}
+
+@api_router.post("/printer/stop/tool0")
+async def printer_stop_tool0():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.tools[0].stop()
+    return {"status": "success", "message": "Tool 0 stopped"}
+
+@api_router.post("/printer/stop/tool1")
+async def printer_stop_tool1():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.tools[1].stop()
+    return {"status": "success", "message": "Tool 1 stopped"}
+
+@api_router.post("/printer/stop/all")
+async def printer_stop_all():
+    if printer is None:
+        raise HTTPException(status_code=503, detail="Printer service is initializing")
+    await printer.x_axis.stop()
+    await printer.y_axis.stop()
+    await printer.tools[0].stop()
+    await printer.tools[1].stop()
+    return {"status": "success", "message": "All printer motors stopped"}
 
 # Mount the API router at both / and /api paths
 app.include_router(api_router)

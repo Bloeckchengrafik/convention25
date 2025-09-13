@@ -577,6 +577,7 @@ class FtSwarmStepper(FtSwarmIO):
 
     async def homing(self, max_steps: int):
         await self._swarm.send(self._port_name, "homing", max_steps)
+        self.done_running_event.clear()
 
     async def homing_and_wait(self, max_steps: int):
         await self.homing(max_steps)
@@ -593,6 +594,7 @@ class FtSwarmStepper(FtSwarmIO):
 
     async def run(self):
         await self._swarm.send(self._port_name, "run")
+        self.done_running_event.clear()
 
     async def stop(self):
         await self._swarm.send(self._port_name, "stop")
@@ -621,7 +623,7 @@ class FtSwarmRotary(FtSwarmIO):
         self._offset = 0
 
     async def post_init(self) -> None:
-        await self._swarm.send(self._port_name, "subscribe", 100)
+        await self._swarm.send(self._port_name, "subscribe", 30)
 
     async def homing(self, max_steps: int):
         await self._swarm.send(self._port_name, "homing", max_steps)

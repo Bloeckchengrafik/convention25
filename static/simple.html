@@ -85,10 +85,51 @@
                 color: #721c24;
                 border: 1px solid #f5c6cb;
             }
+            .input-group {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin-top: 10px;
+            }
+            input[type="number"] {
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+                width: 80px;
+                text-align: center;
+            }
+            input[type="number"]:focus {
+                outline: none;
+                border-color: #1a73e8;
+                box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+            }
+            .navigation {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            .nav-link {
+                color: #1a73e8;
+                text-decoration: none;
+                margin: 0 15px;
+                font-weight: bold;
+            }
+            .nav-link:hover {
+                text-decoration: underline;
+            }
         </style>
     </head>
     <body>
         <div class="container">
+            <div class="navigation">
+                <a href="/static/printer.html" class="nav-link"
+                    >→ Printer Controls</a
+                >
+                <span>|</span>
+                <a href="/ui" class="nav-link">Main UI</a>
+            </div>
+
             <h1>Storage Movement Controls</h1>
 
             <div class="section">
@@ -144,6 +185,21 @@
                         Y Right
                     </button>
                 </div>
+                <div class="input-group">
+                    <label for="yPosition">Position:</label>
+                    <input
+                        type="number"
+                        id="yPosition"
+                        value="0"
+                        min="0"
+                        max="1000"
+                    />
+                    <button
+                        onclick="executeCommandWithParam('/storage/move/y_set', 'POST', 'pos', document.getElementById('yPosition').value)"
+                    >
+                        Y Set Position
+                    </button>
+                </div>
             </div>
 
             <div class="section">
@@ -166,6 +222,20 @@
         </div>
 
         <script>
+            // Prevent touch event conflicts on mobile
+            document.addEventListener("DOMContentLoaded", function () {
+                // Prevent default touch behaviors that might interfere
+                document.querySelectorAll("button").forEach((button) => {
+                    button.addEventListener(
+                        "touchstart",
+                        function (e) {
+                            e.preventDefault();
+                        },
+                        { passive: false },
+                    );
+                });
+            });
+
             async function executeCommand(endpoint, method = "POST") {
                 const statusDiv = document.getElementById("status");
                 const button = event.target;
@@ -188,6 +258,56 @@
                         showStatus(
                             "success",
                             `✅ Success: ${data.message || "Command executed successfully"}`,
+                        );
+                    } else {
+                        showStatus(
+                            "error",
+                            `❌ Error: ${data.detail || "Command failed"}`,
+                        );
+                    }
+                } catch (error) {
+                    showStatus("error", `❌ Network Error: ${error.message}`);
+                } finally {
+                    // Re-enable button and restore text
+                    button.disabled = false;
+                    button.textContent = button.textContent.replace(" ...", "");
+                }
+            }
+
+            async function executeCommandWithParam(
+                endpoint,
+                method = "POST",
+                paramName,
+                paramValue,
+            ) {
+                const statusDiv = document.getElementById("status");
+                const button = event.target;
+
+                // Validate parameter
+                if (!paramValue || paramValue === "") {
+                    showStatus("error", "❌ Error: Position value is required");
+                    return;
+                }
+
+                // Disable button and show loading state
+                button.disabled = true;
+                button.textContent = button.textContent + " ...";
+
+                try {
+                    const url = `/api${endpoint}?${paramName}=${encodeURIComponent(paramValue)}`;
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        showStatus(
+                            "success",
+                            `✅ Success: Set position to ${paramValue}`,
                         );
                     } else {
                         showStatus(

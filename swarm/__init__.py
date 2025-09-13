@@ -58,7 +58,6 @@ class FtSwarm(FtSwarmBase):
     async def input_loop(self):
         while True:
             await self.queue_use()
-            await asyncio.sleep(0.2)
 
     @staticmethod
     def _stringify_param(param):

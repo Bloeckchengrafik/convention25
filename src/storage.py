@@ -23,13 +23,13 @@ class Rotator(Aobject):
         await self.pusher.set_speed(0)
 
     async def rotate_to_printstage(self):
-        await self.rotator.set_speed(4000)
+        await self.rotator.set_speed(-2000)
         while await self.rotator_es_printstage.is_released():
             await asyncio.sleep(0.1)
         await self.rotator.set_speed(0)
 
     async def rotate_to_storage(self):
-        await self.rotator.set_speed(-4000)
+        await self.rotator.set_speed(2000)
         while await self.rotator_es_storage.is_released():
             await asyncio.sleep(0.1)
         await self.rotator.set_speed(0)
@@ -49,7 +49,7 @@ class Rotator(Aobject):
         await self.push()
         await asyncio.gather(
             self.home_pusher(),
-            self.rotate_to_printstage()
+            self.rotate_to_storage()
         )
 
 class XAxis(Aobject):
@@ -77,14 +77,15 @@ class XAxis(Aobject):
 
 class YAxis(Aobject):
     POSITION_BOTTOM_PICKUP = 100
-    POSITION_SEGMENT_RIGHT = 200
-    POSITION_SEGMENT_LEFT = 300
+    POSITION_SEGMENT_RIGHT = 2100
+    POSITION_SEGMENT_LEFT = 3100
 
     async def __init__(self, swarm: FtSwarm) -> None:
         await super().__init__()
         self.y_axis = await swarm.get_motor(Io.STORAGE_Y)
         self.y_endstop = await swarm.get_switch(Io.STORAGE_Y_ES)
         self.rotary = await swarm.get_rotary(Io.STORAGE_Y_KNOB)
+        self.current_position = 0
 
     async def home(self):
         await self.y_axis.set_speed(4000)
@@ -92,13 +93,16 @@ class YAxis(Aobject):
             await asyncio.sleep(0.01)
         await self.y_axis.set_speed(0)
         await self.rotary.set_home()
+        self.current_position = 0
 
     async def goto(self, position: int):
-        delta = position - await self.rotary.get_value()
+        delta = position - self.current_position
         await self.y_axis.set_speed(sign(delta) * -4000)
-        for _ in range(100):
-            print(await self.rotary.get_value())
+        await self.rotary.set_home()
+        while await self.rotary.get_value() < abs(delta):
             await asyncio.sleep(0.1)
+        await self.y_axis.set_speed(0)
+        self.current_position = position
 
 
 class Storage(Aobject):

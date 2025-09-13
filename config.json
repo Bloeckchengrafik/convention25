@@ -1,1 +1,7 @@
-{"flow_rate": 0.3}
+{
+  "flow_rate": 0.007,
+  "tool_lead_time": 0.1,
+  "tool_lag_time": 0.05,
+  "retraction_distance": 50,
+  "retraction_speed": 1000
+}
